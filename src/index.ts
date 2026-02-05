@@ -5,11 +5,15 @@ import subjectsRouter from "./routes/subjects";
 const app = express();
 const PORT = 8000;
 
-app.use(cors({
-    origin: process.env.FRONTEND_URL, 
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-    credentials: true
-}))
+if (!process.env.FRONTEND_URL) throw new Error("Frontend url is not set in .env file");
+
+  app.use(
+    cors({
+      origin: process.env.FRONTEND_URL,
+      methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+      credentials: true,
+    }),
+  );
 
 app.use(express.json()); 
 
