@@ -6,6 +6,9 @@ import cors from "cors";
 import subjectsRouter from "./routes/subjects.js";
 import usersRouter from "./routes/users.js";
 import classesRouter from "./routes/classes.js";
+import departmentsRouter from "./routes/departments.js";
+import enrollmentsRouter from "./routes/enrollments.js";
+import analyticsRouter from "./routes/analytics.js";
 import securityMiddleware from "./middleware/security.js";
 import { toNodeHandler } from "better-auth/node";
 import { auth } from "./lib/auth.js";
@@ -31,6 +34,9 @@ app.use(securityMiddleware);
 app.use('/api/subjects', subjectsRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/classes', classesRouter);
+app.use('/api/departments', departmentsRouter);
+app.use('/api/enrollments', enrollmentsRouter);
+app.use('/api/analytics', analyticsRouter);
 
 app.get('/', (req, res) => {
     res.send("Hello, Welcome to the classroom API");

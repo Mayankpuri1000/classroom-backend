@@ -81,6 +81,114 @@ router.get("/", async (req, res) => {
         console.error(`GET /users error: ${error}`);
         res.status(500).json({error: 'Failed to get users'});
     }
-})
+});
+
+// GET /api/users/:id - Get single user
+router.get("/:id", async (req, res) => {
+    try {
+        const userId = req.params.id;
+
+        const [userDetails] = await db
+            .select({ ...getTableColumns(user) })
+            .from(user)
+            .where(eq(user.id, userId));
+
+        if (!userDetails) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        res.status(200).json({ data: userDetails });
+    } catch (error) {
+        console.error(`GET /users/:id error: ${error}`);
+        res.status(500).json({ error: 'Failed to get user' });
+    }
+});
+
+// PATCH /api/users/:id - Update user
+router.patch("/:id", async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const { name, email, role, image, imageCldPubId } = req.body;
+
+        // Check if user exists
+        const [existing] = await db
+            .select({ id: user.id })
+            .from(user)
+            .where(eq(user.id, userId));
+
+        if (!existing) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        // If updating email, check for duplicates
+        if (email) {
+            const [duplicate] = await db
+                .select({ id: user.id })
+                .from(user)
+                .where(eq(user.email, email));
+
+            if (duplicate && duplicate.id !== userId) {
+                return res.status(400).json({ error: "Email already exists" });
+            }
+        }
+
+        const updateData: any = {};
+        if (name !== undefined) updateData.name = name;
+        if (email !== undefined) updateData.email = email;
+        if (role !== undefined) updateData.role = role;
+        if (image !== undefined) updateData.image = image;
+        if (imageCldPubId !== undefined) updateData.imageCldPubId = imageCldPubId;
+
+        const [updatedUser] = await db
+            .update(user)
+            .set(updateData)
+            .where(eq(user.id, userId))
+            .returning({ id: user.id });
+
+        if (!updatedUser) {
+            throw new Error("Failed to update user");
+        }
+
+        res.status(200).json({ data: updatedUser });
+    } catch (error) {
+        console.error(`PATCH /users/:id error: ${error}`);
+        res.status(500).json({ error: "Failed to update user" });
+    }
+});
+
+// DELETE /api/users/:id - Delete user
+router.delete("/:id", async (req, res) => {
+    try {
+        const userId = req.params.id;
+
+        // Check if user is a teacher of any active classes
+        const { classes } = await import("../db/schema/index.js");
+        const [classCount] = await db
+            .select({ count: sql<number> `count(*)` })
+            .from(classes)
+            .where(and(eq(classes.teacherId, userId), eq(classes.status, "active")));
+
+        if (classCount && classCount.count > 0) {
+            return res.status(409).json({ 
+                error: "Cannot delete user who is teaching active classes",
+                details: `This user is teaching ${classCount.count} active class(es). Please reassign them first.`
+            });
+        }
+
+        const [deletedUser] = await db
+            .delete(user)
+            .where(eq(user.id, userId))
+            .returning({ id: user.id });
+
+        if (!deletedUser) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        res.status(200).json({ data: deletedUser });
+    } catch (error) {
+        console.error(`DELETE /users/:id error: ${error}`);
+        res.status(500).json({ error: "Failed to delete user" });
+    }
+});
 
 export default router
